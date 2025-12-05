@@ -1,14 +1,11 @@
 import React, { useContext, useState } from "react";
 import { View, Text, Button } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AuthContext } from "../context/AuthContext";
 import { db } from "../firebase";
-import {
-  collection,
-  addDoc,
-  doc,
-  getDoc,
-  setDoc,
-} from "firebase/firestore";
+import { collection, addDoc, doc, getDoc, setDoc } from "firebase/firestore";
+
+const LOCAL_STATS_KEY = "localStats";
 
 export default function ResultsScreen({ route, navigation }) {
   const { total, nivel, puntos } = route.params;
@@ -18,6 +15,29 @@ export default function ResultsScreen({ route, navigation }) {
   const [guardado, setGuardado] = useState(false);
 
   const puntajeTotal = puntos.reduce((a, b) => a + b, 0);
+
+  // Función para actualizar estadísticas locales persistentes
+  const updateLocalStats = async () => {
+    try {
+      const prev = await AsyncStorage.getItem(LOCAL_STATS_KEY);
+      const parsed = prev ? JSON.parse(prev) : {};
+      const bestScorePrev = parsed.bestScore || 0;
+      const gamesPlayedPrev = parsed.gamesPlayed || 0;
+// Se crea el nuevo objeto de estadísticas
+      const newStats = {
+        bestScore: Math.max(bestScorePrev, puntajeTotal),
+        gamesPlayed: gamesPlayedPrev + 1,
+        lastScore: puntajeTotal,
+        lastLevel: nivel,
+        lastRounds: total,
+        lastPlayedAt: new Date().toISOString(),
+      };
+
+      await AsyncStorage.setItem(LOCAL_STATS_KEY, JSON.stringify(newStats));
+    } catch (err) {
+      console.log("No se pudo guardar stats locales:", err);
+    }
+  };
 
   const handleGuardarResultado = async () => {
     if (!user) {
@@ -32,7 +52,10 @@ export default function ResultsScreen({ route, navigation }) {
     try {
       setGuardando(true);
 
-      // guarda la partida en games
+      // Guarda stats locales persistentes
+      await updateLocalStats();
+
+      // guarda la partida en games (Firestore)
       await addDoc(collection(db, "games"), {
         userId: user.uid,
         userName: user.displayName,
@@ -43,7 +66,7 @@ export default function ResultsScreen({ route, navigation }) {
         createdAt: new Date(),
       });
 
-      // se actualizan las estadísticas del usuario 
+      // se actualizan las estadísticas del usuario
       const userRef = doc(db, "users", user.uid);
       const snap = await getDoc(userRef);
       const data = snap.exists() ? snap.data() : {};
@@ -54,8 +77,7 @@ export default function ResultsScreen({ route, navigation }) {
 
       const nuevoTotalScore = totalScorePrevio + puntajeTotal;
       const nuevoGamesPlayed = gamesPrevios + 1;
-      const nuevoBestScore =
-        puntajeTotal > bestPrevio ? puntajeTotal : bestPrevio;
+      const nuevoBestScore = puntajeTotal > bestPrevio ? puntajeTotal : bestPrevio;
 
       await setDoc(
         userRef,
@@ -89,19 +111,13 @@ export default function ResultsScreen({ route, navigation }) {
         gap: 10,
       }}
     >
-      <Text style={{ fontSize: 26, marginBottom: 10 }}>
-        ¡Juego completado!
-      </Text>
+      <Text style={{ fontSize: 26, marginBottom: 10 }}>¡Juego completado!</Text>
 
       <Text style={{ fontSize: 18 }}>Rondas jugadas: {total}</Text>
       <Text style={{ fontSize: 18 }}>Nivel: {nivel}</Text>
-      <Text style={{ fontSize: 20, marginTop: 10 }}>
-        Puntaje total: {puntajeTotal}
-      </Text>
+      <Text style={{ fontSize: 20, marginTop: 10 }}>Puntaje total: {puntajeTotal}</Text>
 
-      <Text style={{ marginTop: 20, fontWeight: "bold" }}>
-        Puntaje por ronda:
-      </Text>
+      <Text style={{ marginTop: 20, fontWeight: "bold" }}>Puntaje por ronda:</Text>
       {puntos.map((p, i) => (
         <Text key={i}>
           Ronda {i + 1}: {p} puntos
@@ -121,10 +137,7 @@ export default function ResultsScreen({ route, navigation }) {
           disabled={guardando || guardado}
         />
 
-        <Button
-          title="Volver al Home"
-          onPress={() => navigation.navigate("Home")}
-        />
+        <Button title="Volver al Home" onPress={() => navigation.navigate("Home")} />
       </View>
     </View>
   );
