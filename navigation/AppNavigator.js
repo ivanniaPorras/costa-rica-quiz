@@ -6,6 +6,7 @@ import GameScreen from "../screens/GameScreen";
 import LevelScreen from "../screens/LevelScreen";
 import ResultsScreen from "../screens/ResultsScreen";
 import InstructionsScreen from "../screens/InstructionsScreen";
+import LeaderboardScreen from "../screens/LeaderboardScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -35,9 +36,11 @@ export default function AppNavigator({ user }) {
             component={GameScreen}
             options={{ title: "Juego" }}
           />
+          <Stack.Screen name="Results" component={ResultsScreen} />
           <Stack.Screen
-            name="Results"
-            component={ResultsScreen}
+            name="Leaderboard"
+            component={LeaderboardScreen}
+            options={{ title: "Leaderboard" }}
           />
           <Stack.Screen
             name="Instructions"
