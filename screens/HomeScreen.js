@@ -21,8 +21,9 @@ export default function HomeScreen({ navigation }) {
         
       <Button
         title="Leaderboard"
-        onPress={() => alert("Aquí irá el leaderboard")}
+        onPress={() => navigation.navigate("Leaderboard")}
       />
+
 
       <Button title="Cerrar sesión" onPress={logout} />
     </View>
